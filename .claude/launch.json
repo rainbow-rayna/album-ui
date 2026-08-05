@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "album-ui-dev",
+      "runtimeExecutable": "/Users/rayna6/Desktop/Vibe Coding/Album UI/.claude/run-dev.sh",
+      "runtimeArgs": [],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "scrapbook-journal-dev",
+      "runtimeExecutable": "/Users/rayna6/Desktop/Vibe Coding/Scrapbook Journal/.claude/run-dev.sh",
+      "runtimeArgs": [],
+      "port": 5174,
+      "autoPort": true
+    }
+  ]
+}

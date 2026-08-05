@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(which node *)",
+      "Bash(curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh)",
+      "Bash(bash)",
+      "Bash(mkdir -p \"/Users/rayna6/Desktop/Vibe Coding/Album UI/.claude\")",
+      "Bash(chmod +x \"/Users/rayna6/Desktop/Vibe Coding/Album UI/.claude/run-dev.sh\")"
+    ]
+  }
+}
