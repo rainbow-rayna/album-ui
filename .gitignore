@@ -2,3 +2,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Real API keys live here — never commit. `.env.example` is the committed
+# template; copy it to `.env` and fill it in.
+.env
+.env.local
+.env.*.local
+dist-demo/

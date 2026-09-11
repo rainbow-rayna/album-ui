@@ -17,16 +17,164 @@ canvas {
   touch-action: none;
 }
 
-.hint {
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 28px;
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.top-bar__logo {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.top-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: right;
+}
+
+.top-bar__hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  max-width: 46ch;
+  user-select: none;
+}
+
+.top-bar__mute {
+  pointer-events: auto;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.top-bar__mute:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cover-cta {
   position: fixed;
   left: 50%;
-  bottom: 28px;
+  bottom: 64px;
   transform: translateX(-50%);
-  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(20, 18, 14, 0.55);
+  backdrop-filter: blur(6px);
+  color: rgba(255, 255, 255, 0.9);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.cover-cta:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(20, 18, 14, 0.75);
+}
+
+.page-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 32px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.page-nav__arrow {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-nav__arrow:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.page-nav__arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.save-error {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70; /* above the composer / Edit pages overlays (60) */
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(560px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid rgba(217, 138, 138, 0.6);
+  border-radius: 4px;
+  background: rgba(40, 16, 16, 0.92);
+  color: #f3c6c6;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 13px;
-  letter-spacing: 0.04em;
-  pointer-events: none;
-  user-select: none;
+  line-height: 1.45;
+}
+
+.save-error button {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.save-error button:hover {
+  opacity: 1;
+}
+
+.page-nav__count {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  min-width: 5ch;
   text-align: center;
+  user-select: none;
 }

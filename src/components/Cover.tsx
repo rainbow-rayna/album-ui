@@ -9,14 +9,14 @@ import {
   CLOSED_ANGLE,
   BACK_COVER_OPEN_ANGLE,
   FRONT_COVER_Z,
-  FRONT_COVER_OPEN_Z,
-  BACK_COVER_Z,
+  getFrontCoverOpenZ,
+  getBackCoverZ,
 } from "../utils/pageBend";
 import { useBookStore } from "../store/useBookStore";
+import { getTotalPages } from "../store/useJournalStore";
 import { pendingClick } from "../utils/dragCoordinator";
 import RibbonBow from "./appliques/RibbonBow";
 import RibbonStrand from "./appliques/RibbonStrand";
-import SpiralBinding from "./appliques/SpiralBinding";
 import Heart from "./appliques/Heart";
 import Star from "./appliques/Star";
 import Button from "./appliques/Button";
@@ -64,19 +64,22 @@ const Cover = forwardRef<CoverHandle, CoverProps>(function Cover({ variant }, re
 
   // The front cover is a rigid, one-time hardcover flip — fully decoupled
   // from PagePool's hinge/fan math and from reading progress. It rotates a
-  // fixed 180° to lie flat, face-down, sinking to a fixed buried Z (deeper
-  // than any page depth the pool renders) so it becomes the permanent
+  // fixed 180° to lie flat, face-down, sinking to a buried Z (deeper than
+  // any page depth the pool currently renders) so it becomes the permanent
   // bottom-most layer of the read stack once open — it was "opened" first,
   // so it stays there for good, no matter how many pages get turned
   // afterward. The back cover mirrors this: it swings open the opposite
   // rotational direction, to BACK_COVER_OPEN_ANGLE (+1°, vs. the front's
   // -180°) — two hardcovers opening away from each other, like double
   // doors — but just barely, ending up slightly ajar rather than lying
-  // flat. Its Z never changes; it's the one surface meant to stay visible
-  // there.
+  // flat. Both covers' Z track getBackCoverZ/getFrontCoverOpenZ (not a
+  // fixed constant) since how far back they need to sit depends on how
+  // many pages currently exist — a short book's covers stay much closer
+  // together than a long one's.
   useFrame((_, dt) => {
     if (!groupRef.current) return;
     const isOpen = useBookStore.getState().isOpen;
+    const totalPages = getTotalPages();
     const targetRotY = isFront
       ? isOpen
         ? FRONT_COVER_OPEN_ANGLE
@@ -85,16 +88,14 @@ const Cover = forwardRef<CoverHandle, CoverProps>(function Cover({ variant }, re
         ? BACK_COVER_OPEN_ANGLE
         : CLOSED_ANGLE;
     groupRef.current.rotation.y = THREE.MathUtils.damp(groupRef.current.rotation.y, targetRotY, 4, dt);
-    if (isFront) {
-      const targetZ = isOpen ? FRONT_COVER_OPEN_Z : FRONT_COVER_Z;
-      groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetZ, 4, dt);
-    }
+    const targetZ = isFront ? (isOpen ? getFrontCoverOpenZ(totalPages) : FRONT_COVER_Z) : getBackCoverZ(totalPages);
+    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetZ, 4, dt);
   });
 
   return (
     <group
       ref={groupRef}
-      position={[0, 0, isFront ? FRONT_COVER_Z : BACK_COVER_Z]}
+      position={[0, 0, isFront ? FRONT_COVER_Z : getBackCoverZ(getTotalPages())]}
       onPointerDown={
         isFront
           ? () => {
@@ -110,8 +111,6 @@ const Cover = forwardRef<CoverHandle, CoverProps>(function Cover({ variant }, re
       }
     >
       <mesh geometry={geometry} material={material} castShadow receiveShadow frustumCulled={false} />
-
-      <SpiralBinding height={COVER_HEIGHT * 0.94} x={0.02} />
 
       {isFront && (
         <group position={[0, 0, COVER_DEPTH / 2 + 0.002]}>

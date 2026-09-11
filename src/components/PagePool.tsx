@@ -1,8 +1,9 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import Page, { PageHandle } from "./Page";
-import { useBookStore, POOL_SIZE, TOTAL_PAGES } from "../store/useBookStore";
+import { useBookStore, POOL_SIZE } from "../store/useBookStore";
+import { useJournalStore, getTotalPages, getLeafFaces } from "../store/useJournalStore";
 import { FRONT_OPEN_ANGLE, BACK_COVER_ANGLE, STACK_GAP, CLOSED_ANGLE } from "../utils/pageBend";
 import { readProgress } from "../utils/readProgress";
 import { nextPage, prevPage } from "../utils/pageNav";
@@ -55,10 +56,22 @@ function openTransform(relative: number, f: number, jitter: number): Transform {
     return { rotY: THREE.MathUtils.lerp(FRONT_OPEN_ANGLE, BACK_COVER_ANGLE, f), posZ: 0, rotX: jitter };
   }
   if (relative <= 0) {
-    const depth = -relative;
+    // Same reasoning as the unread side below: the active page occupies depth
+    // 0, so the read pile has to start one slot deeper. At f=1 the active page
+    // has rotated to exactly BACK_COVER_ANGLE — the read pile's own resting
+    // angle — so leaving relative === 0 at depth 0 put two pages on precisely
+    // the same plane at the same position, and the depth buffer resolved the
+    // tie per-fragment: the landing page showed the page beneath it bleeding
+    // through across part of its surface for the frames either side of the
+    // hand-off.
+    const depth = -relative + 1;
     return { rotY: BACK_COVER_ANGLE, posZ: -depth * STACK_GAP, rotX: jitter };
   }
-  const depth = relative - 2;
+  // relative === 1 (handled above) is always the active page, pinned to
+  // depth 0 regardless of f — so the first *resting* unread page starts one
+  // slot deeper, at depth 1, not 0 (a depth-2 offset here would coincide
+  // with the active page's own depth-0 resting spot and z-fight against it).
+  const depth = relative - 1;
   return { rotY: FRONT_OPEN_ANGLE, posZ: -depth * STACK_GAP, rotX: jitter };
 }
 
@@ -67,7 +80,13 @@ function openTransform(relative: number, f: number, jitter: number): Transform {
 // concept as the open piles, just without any rotation, so opening/closing
 // transitions smoothly instead of popping.
 function closedTransform(relative: number): Transform {
-  const depth = relative <= 0 ? -relative : relative - 1;
+  // Same slot assignment as openTransform, so closing only has to animate
+  // rotation and never shuffles pages through each other in depth. Note the
+  // read side is -relative + 1 here too: with a plain -relative, relative 0
+  // and relative 1 both landed on depth 0 and z-fought — hidden behind the
+  // front cover while fully closed, but exposed mid-open once the cover
+  // swings clear and the pages are still near CLOSED_ANGLE.
+  const depth = relative <= 0 ? -relative + 1 : relative - 1;
   return { rotY: CLOSED_ANGLE, posZ: -depth * STACK_GAP, rotX: 0 };
 }
 
@@ -85,7 +104,20 @@ export default function PagePool() {
   );
   const lastFloor = useRef(0);
 
-  const content = useMemo(() => ({ kind: "blank" as const }), []);
+  // Pushes each pool slot's current content down to its Page instance —
+  // called on mount and whenever the entries array changes (new page
+  // saved/deleted), since appending never shifts already-assigned logical
+  // indices (see useJournalStore: new entries always sort to the end).
+  function syncAllSlotContent() {
+    for (let i = 0; i < POOL_SIZE; i++) {
+      handles.current[i]?.setContent(getLeafFaces(slots.current[i].logicalIndex));
+    }
+  }
+
+  useEffect(() => {
+    syncAllSlotContent();
+    return useJournalStore.subscribe(() => syncAllSlotContent());
+  }, []);
 
   // Reassigns the slot exiting the trailing edge of the window to the
   // logical page entering the leading edge, snapping it straight to its new
@@ -106,13 +138,15 @@ export default function PagePool() {
     const t = openTransform(relative, 0, jitter);
     handle.group.rotation.set(t.rotX, t.rotY, 0);
     handle.group.position.set(0, 0, t.posZ);
+    handle.setContent(getLeafFaces(enteringLogical));
   }
 
   useFrame(() => {
     const isOpen = useBookStore.getState().isOpen;
+    const totalPages = getTotalPages();
     const rawPos = Number.isFinite(readProgress.current) ? readProgress.current : 0;
-    const pos = THREE.MathUtils.clamp(rawPos, 0, TOTAL_PAGES);
-    const flooredPage = Math.min(Math.floor(pos), TOTAL_PAGES);
+    const pos = THREE.MathUtils.clamp(rawPos, 0, totalPages);
+    const flooredPage = Math.min(Math.floor(pos), totalPages);
     const f = pos - flooredPage;
 
     while (flooredPage > lastFloor.current) {
@@ -128,7 +162,7 @@ export default function PagePool() {
       const handle = handles.current[i];
       if (!handle?.group) continue;
       const slot = slots.current[i];
-      handle.group.visible = slot.logicalIndex > 0 && slot.logicalIndex <= TOTAL_PAGES;
+      handle.group.visible = slot.logicalIndex > 0 && slot.logicalIndex <= totalPages;
       const relative = slot.logicalIndex - flooredPage;
       const jitter = (seededJitter(slot.logicalIndex) - 0.5) * 0.05;
 
@@ -163,7 +197,6 @@ export default function PagePool() {
           ref={(h) => {
             handles.current[i] = h;
           }}
-          content={content}
           onPointerDown={() => {
             if (!useBookStore.getState().isOpen) return;
             // Whichever pile this slot is currently in at the moment of the

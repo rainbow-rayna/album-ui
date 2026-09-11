@@ -24,17 +24,66 @@ export const SEGMENT_WIDTH = PAGE_WIDTH / PAGE_SEGMENTS;
 // from reading progress entirely.
 export const COVER_SWEEP = Math.PI; // 180°, the two piles' angular separation
 export const CLOSED_ANGLE = 0; // both covers flat/closed, hiding both piles
-export const FRONT_OPEN_ANGLE = THREE.MathUtils.degToRad(-30); // the "unread" pile's resting angle
+// The "unread" pile's resting angle — 0, flush with the spine plane, so it's
+// exactly COVER_SWEEP (180°) from BACK_COVER_ANGLE below and the two piles
+// sit perfectly coplanar (a flat open spread, no crease) rather than meeting
+// at a V-shaped angle.
+export const FRONT_OPEN_ANGLE = 0;
 export const BACK_COVER_ANGLE = -COVER_SWEEP; // the "read" pile's resting angle (math only — see BACK_COVER_OPEN_ANGLE)
-export const STACK_GAP = 0.012;
+
+// Every other depth constant in this file (and the covers' Z, in Cover.tsx)
+// is a multiple of this one, on purpose: at this camera's near/far range,
+// the depth buffer can't reliably tell apart two surfaces closer together
+// than roughly this — closer than that and they z-fight, which renders as
+// a hard-edged mix of both surfaces' content instead of just the one that
+// should be facing the camera (this is what a page rendering with a stray
+// band of a *different* page's imagery on it means: two surfaces landed
+// within one of these of each other). Each leaf (Page.tsx) is built from
+// two full-thickness boxes, one per face, offset ±FACE_OFFSET apart so
+// they clear this margin from each other; every constant below has to
+// clear it from whatever it can end up sitting next to as well, or the
+// exact same failure reappears one level up (adjacent leaves in a pile,
+// leaf vs. cover, etc.) — that already happened once when STACK_GAP was
+// tightened without carrying the same margin to the covers' Z below, so
+// don't hand-tune any of these independently again.
+const MIN_DEPTH_SEPARATION = 0.02;
+
+export const FACE_OFFSET = MIN_DEPTH_SEPARATION / 2;
+
+// Pages in a pile sit this far apart in depth. One leaf's own two faces
+// already span 2×FACE_OFFSET + PAGE_DEPTH; the next leaf in the same pile
+// has to clear that whole footprint plus its own margin, not just
+// FACE_OFFSET again.
+export const STACK_GAP = 2 * FACE_OFFSET + PAGE_DEPTH + MIN_DEPTH_SEPARATION;
 
 // A page's resting angle can coincide exactly with BACK_COVER_ANGLE (the
 // last read page approaches it asymptotically). Without a real depth
 // separation those coincident planes z-fight. FRONT_COVER_Z sits just in
-// front of every closed-stack page; BACK_COVER_Z sits well behind the
-// deepest one the pool renders.
-export const FRONT_COVER_Z = 0.006;
-export const BACK_COVER_Z = -0.2;
+// front of every closed-stack page (clearing the topmost page's own
+// FACE_OFFSET-separated front face).
+export const FRONT_COVER_Z = FACE_OFFSET + MIN_DEPTH_SEPARATION;
+
+// BACK_COVER_Z needs to clear whatever the read pile's *actual* deepest
+// rendered page currently is, not a fixed worst case — WINDOW_BEFORE
+// (PagePool.tsx) caps that at 6 slots, but a book with only a couple of
+// pages never gets anywhere near that deep. Sizing the back cover for the
+// worst case unconditionally left it sitting far behind a short book's
+// actual last page, which read as a visible gap between the back cover and
+// the pages in front of it. getBackCoverZ takes the real page count
+// (getTotalPages(), from useJournalStore) and only recedes as far as that
+// book's pages actually reach, capped at the same worst case a long book
+// would need.
+// PagePool's read pile is depth = -relative + 1, so a fully-read book of N
+// leaves puts its deepest page at slot N (and the pool window caps that at
+// WINDOW_BEFORE + 1 = 7). The cover then sits one slot deeper again, which is
+// the clearance this has always carried — sizing it to the deepest page
+// exactly would put the cover inside that page's own FACE_OFFSET/PAGE_DEPTH
+// footprint and z-fight against it.
+const DEEPEST_READ_SLOT = 7;
+export function getBackCoverZ(totalPages: number): number {
+  const deepestPage = Math.min(DEEPEST_READ_SLOT, totalPages);
+  return -((deepestPage + 1) * STACK_GAP + MIN_DEPTH_SEPARATION);
+}
 
 // The front cover's own open behavior is a rigid, one-time hardcover flip —
 // fully decoupled from PagePool's hinge/fan math (which only governs how
@@ -48,10 +97,14 @@ export const FRONT_COVER_OPEN_ANGLE = -Math.PI;
 
 // Once open, the front cover is the permanent bottom-most layer of the read
 // stack — deeper than every page depth the pool renders — so it never pokes
-// out past the actual pages piled on top of it. A fixed offset, not
-// computed from reading progress, keeps it there no matter how many pages
-// get turned afterward.
-export const FRONT_COVER_OPEN_Z = BACK_COVER_Z - 0.03;
+// out past the actual pages piled on top of it. Tracks getBackCoverZ (not a
+// fixed offset) for the same reason getBackCoverZ itself is dynamic: a
+// short book's back cover already sits much closer than the worst case, and
+// the front cover (once open) needs to stay just behind *that*, not behind
+// some fixed distant point.
+export function getFrontCoverOpenZ(totalPages: number): number {
+  return getBackCoverZ(totalPages) - 0.03;
+}
 
 // The back cover's own open rotation mirrors the front cover's: opposite
 // rotational direction (front swings negative, back swings positive — two

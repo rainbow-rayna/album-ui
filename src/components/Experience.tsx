@@ -115,8 +115,13 @@ export default function Experience() {
       />
       <CameraRig controlsRef={controlsRef} setOrbitEnabled={setOrbitEnabled} />
 
+      {/* mipmapBlur removed: its mip-chain sampling was blending each page's
+          rendered content into its neighbors' screen-space regions — most
+          visible as another page's imagery bleeding into an adjacent blank
+          page. The standard (non-mip) blur kernel below doesn't sample
+          across regions that far, so it doesn't have this cross-talk. */}
       <EffectComposer multisampling={4}>
-        <Bloom intensity={0.2} luminanceThreshold={0.75} luminanceSmoothing={0.3} mipmapBlur />
+        <Bloom intensity={0.2} luminanceThreshold={0.75} luminanceSmoothing={0.3} />
         <Vignette eskil={false} offset={0.2} darkness={0.55} />
       </EffectComposer>
     </>
